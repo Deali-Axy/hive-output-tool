@@ -40,8 +40,8 @@ func main() {
 		isExecute bool = false
 	)
 
+	// https://books.studygolang.com/The-Golang-Standard-Library-by-Example/chapter01/01.4.html
 	reader := bufio.NewReader(os.Stdin)
-
 	for !isExecute {
 		fmt.Println("请输入要执行的SQL语句，之后按回车确认。（输入 q 退出）")
 		line, err := reader.ReadBytes('\n')
@@ -66,6 +66,8 @@ func main() {
 		isExecute = true
 	}
 
+	fmt.Println()
+
 	dir, err := os.MkdirTemp("", "hive-out-")
 	if err != nil {
 		fmt.Printf("创建临时目录错误！%v\n", err)
@@ -88,16 +90,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("创建临时文件", tempFile.Name())
+	log.Printf("创建临时文件 %s\n\n", tempFile.Name())
 
 	// https://juejin.cn/post/7000925379145760782
 	// https://github.com/google/uuid
 	u1, err := uuid.NewUUID()
 	if err != nil {
-		fmt.Println("创建UUID失败", err.Error())
+		log.Printf("创建UUID失败: %v\n", err)
 		log.Fatal(err)
 	}
-	fmt.Println("Session ID:", u1.String())
+	log.Printf("Session ID: %v\n\n", u1)
 
 	// https://www.cnblogs.com/mayanan/p/15342214.html
 	t := time.Now()
@@ -105,7 +107,7 @@ func main() {
 	outputPath := fmt.Sprintf("%s.csv", timeStr)
 
 	// https://www.cnblogs.com/wongbingming/p/13984538.html
-	fmt.Println("执行SQL！")
+	log.Printf("正在执行SQL，请稍等...\n\n")
 	cmd := exec.Command("beeline",
 		"-u", os.Getenv("CONN_STR"),
 		"-n", os.Getenv("USERNAME"),
@@ -116,15 +118,22 @@ func main() {
 		"--silent=true",
 		"--outputformat="+os.Getenv("OUTPUT_FORMAT"),
 		"-f", tempFile.Name(),
-		">", outputPath,
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("combined out:\n%s\n", string(out))
+		log.Printf("combined out: %s\n", string(out))
 		log.Fatalf("cmd.Run() failed with %s\n", err)
 	}
-	fmt.Printf("combined out:\n%s\n", string(out))
 
-	fmt.Println("导出数据到：", outputPath)
-	fmt.Println("搞定！")
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		log.Fatalf("创建文件失败: %v\n", err)
+	}
+	if _, err := outputFile.Write(out); err != nil {
+		log.Printf("写入文件失败: %v\n", err)
+		log.Fatal(err)
+	}
+
+	log.Printf("导出数据到：%s\n\n", outputPath)
+	log.Println("搞定！")
 }
