@@ -43,7 +43,7 @@ func main() {
 	// https://books.studygolang.com/The-Golang-Standard-Library-by-Example/chapter01/01.4.html
 	reader := bufio.NewReader(os.Stdin)
 	for !isExecute {
-		fmt.Println("请输入要执行的SQL语句，以分号结束，之后按回车确认。（输入 q 退出）")
+		fmt.Println("请输入要执行的SQL语句，以分号结束，之后按回车确认。（输入 q; 退出）")
 		line, err := reader.ReadBytes(';')
 
 		if err != nil {
@@ -56,7 +56,7 @@ func main() {
 			continue
 		}
 
-		line = bytes.TrimRight(line, "\r\n")
+		line = bytes.TrimRight(line, ";\r\n")
 		sql = string(line)
 
 		if sql == "q" {
