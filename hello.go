@@ -3,6 +3,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"github.com/google/uuid"
@@ -38,19 +40,24 @@ func main() {
 		isExecute bool = false
 	)
 
+	reader := bufio.NewReader(os.Stdin)
+
 	for !isExecute {
 		fmt.Println("请输入要执行的SQL语句，之后按回车确认。（输入 q 退出）")
-		var sqlLength, err = fmt.Scanln(&sql)
+		line, err := reader.ReadBytes('\n')
 
 		if err != nil {
 			fmt.Printf("报错啦：%v\n", err)
 			continue
 		}
 
-		if sqlLength == 0 {
+		if len(line) == 0 {
 			fmt.Println("请输入正确的SQL语句！")
 			continue
 		}
+
+		line = bytes.TrimRight(line, "\r\n")
+		sql = string(line)
 
 		if sql == "q" {
 			os.Exit(0)
@@ -92,6 +99,7 @@ func main() {
 	}
 	fmt.Println("Session ID:", u1.String())
 
+	// https://www.cnblogs.com/mayanan/p/15342214.html
 	t := time.Now()
 	timeStr := fmt.Sprintf("%04d-%02d-%02d_%02d-%02d-%02d-%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond())
 	outputPath := fmt.Sprintf("%s.csv", timeStr)
@@ -107,7 +115,7 @@ func main() {
 		"--fastConnect=true",
 		"--silent=true",
 		"--outputformat="+os.Getenv("OUTPUT_FORMAT"),
-		"-tempFile", tempFile.Name(),
+		"-f", tempFile.Name(),
 		">", outputPath,
 	)
 	out, err := cmd.CombinedOutput()
