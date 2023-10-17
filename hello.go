@@ -106,6 +106,12 @@ func main() {
 	timeStr := fmt.Sprintf("%04d-%02d-%02d_%02d-%02d-%02d-%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond())
 	outputPath := fmt.Sprintf("%s.csv", timeStr)
 
+	// https://books.studygolang.com/The-Golang-Standard-Library-by-Example/chapter06/06.1.html
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		log.Fatalf("创建文件失败: %v\n", err)
+	}
+
 	// https://www.cnblogs.com/wongbingming/p/13984538.html
 	log.Printf("正在执行SQL，请稍等...\n\n")
 	cmd := exec.Command("beeline",
@@ -119,19 +125,11 @@ func main() {
 		"--outputformat="+os.Getenv("OUTPUT_FORMAT"),
 		"-f", tempFile.Name(),
 	)
-	out, err := cmd.CombinedOutput()
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = outputFile
+	err = cmd.Run()
 	if err != nil {
-		log.Printf("combined out: %s\n", string(out))
 		log.Fatalf("cmd.Run() failed with %s\n", err)
-	}
-
-	outputFile, err := os.Create(outputPath)
-	if err != nil {
-		log.Fatalf("创建文件失败: %v\n", err)
-	}
-	if _, err := outputFile.Write(out); err != nil {
-		log.Printf("写入文件失败: %v\n", err)
-		log.Fatal(err)
 	}
 
 	log.Printf("导出数据到：%s\n\n", outputPath)
