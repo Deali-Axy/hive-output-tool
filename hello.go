@@ -6,8 +6,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 	"log"
 	"os"
+	"os/exec"
+	"time"
 )
 
 func showDivider() {
@@ -24,6 +27,11 @@ func main() {
 	fmt.Println("Hive 数据导出工具")
 	fmt.Println("https://github.com/Deali-Axy/hive-output-tool")
 	showDivider()
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file", err.Error())
+	}
 
 	var (
 		sql       string
@@ -57,23 +65,23 @@ func main() {
 		log.Fatal(err)
 	}
 
-	f, err := os.CreateTemp(dir, "hive.*.sql")
+	tempFile, err := os.CreateTemp(dir, "hive.*.sql")
 	if err != nil {
 		fmt.Printf("创建临时文件错误！错误：%v\n", err)
 		log.Fatal(err)
 	}
 
-	defer f.Close()
-	defer os.Remove(f.Name())
+	defer tempFile.Close()
+	defer os.Remove(tempFile.Name())
 	defer os.RemoveAll(dir)
 
 	data := []byte(sql)
-	if _, err := f.Write(data); err != nil {
+	if _, err := tempFile.Write(data); err != nil {
 		fmt.Println("写入文件失败！", err.Error())
 		log.Fatal(err)
 	}
 
-	fmt.Println("创建临时文件", f.Name())
+	fmt.Println("创建临时文件", tempFile.Name())
 
 	// https://juejin.cn/post/7000925379145760782
 	// https://github.com/google/uuid
@@ -82,16 +90,33 @@ func main() {
 		fmt.Println("创建UUID失败", err.Error())
 		log.Fatal(err)
 	}
-	fmt.Println(u1.String())
+	fmt.Println("Session ID:", u1.String())
+
+	t := time.Now()
+	timeStr := fmt.Sprintf("%04d-%02d-%02d_%02d-%02d-%02d-%02d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond())
+	outputPath := fmt.Sprintf("%s.csv", timeStr)
 
 	// https://www.cnblogs.com/wongbingming/p/13984538.html
-	//fmt.Println("执行SQL！")
-	//cmd := exec.Command("echo", f.Name())
-	//out, err := cmd.CombinedOutput()
-	//if err != nil {
-	//	fmt.Printf("combined out:\n%s\n", string(out))
-	//	log.Fatalf("cmd.Run() failed with %s\n", err)
-	//}
-	//fmt.Printf("combined out:\n%s\n", string(out))
+	fmt.Println("执行SQL！")
+	cmd := exec.Command("beeline",
+		"-u", os.Getenv("CONN_STR"),
+		"-n", os.Getenv("USERNAME"),
+		"-p", os.Getenv("PASSWORD"),
+		"--incremental=true",
+		"--verbose=true",
+		"--fastConnect=true",
+		"--silent=true",
+		"--outputformat="+os.Getenv("OUTPUT_FORMAT"),
+		"-tempFile", tempFile.Name(),
+		">", outputPath,
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("combined out:\n%s\n", string(out))
+		log.Fatalf("cmd.Run() failed with %s\n", err)
+	}
+	fmt.Printf("combined out:\n%s\n", string(out))
 
+	fmt.Println("导出数据到：", outputPath)
+	fmt.Println("搞定！")
 }
